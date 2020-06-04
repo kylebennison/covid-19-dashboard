@@ -228,7 +228,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 3, placeholder = "Select up to 3 counties")
                                 ),
                                 tags$h6("Optionally, you can type the state name to filter the list down to just the counties in that state.", style = "margin-bottom:30px; color:#545454"),
-                                dateRangeInput(inputId = "daterange", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15")
+                                dateRangeInput(inputId = "daterange", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15"),
+                                plotOutput(outputId = "top10_counties")
                               ),
                               mainPanel(
                                 plotOutput(outputId = "cases"),
@@ -255,7 +256,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                multiple = TRUE,
                                                options = list(maxItems = 3, placeholder = "Select up to 3 states")
                                 ),
-                                dateRangeInput(inputId = "daterange_state", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15")
+                                dateRangeInput(inputId = "daterange_state", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15"),
+                                plotOutput(outputId = "top10_states")
                               ),
                               mainPanel(
                                 plotOutput(outputId = "cases_state"),
@@ -280,7 +282,11 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 1, placeholder = "Select a state")
                                 ),
                                 plotOutput(outputId = "hospitalizations_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 plotOutput(outputId = "testing_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 selectizeInput(inputId = "pos_test_input_state", label = "Select a state", 
                                                choices = unique(covid_state_daily$state.name), 
                                                selected = NULL,
@@ -288,15 +294,17 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 3, placeholder = "Select up to 3 states")
                                 ),
                                 plotOutput(outputId = "pos_tests_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$hr(),
                                 tags$h2("Detailed Testing Data by State"),
-                                dataTableOutput(outputId = "total_testing_dt_state"),
+                                dataTableOutput(outputId = "total_testing_dt_state", width = "100%"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$p("A shiny app by ", 
                                        tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                        " - ", 
-                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank")),
-                                tags$p("Data - ", 
-                                       tags$a("Johns Hopkins CSSE" , href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series", target="_blank"))
+                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank"))
                               )
                             )
                  ),
@@ -358,6 +366,27 @@ server <- function(input, output) {
 
 # County Output -----------------------------------------------------------
 
+  output$top10_counties <- renderPlot(
+    {
+    covid_data %>% 
+      filter(date == max(covid_data$date)) %>% 
+      top_n(10, New_Cases) %>%
+      ggplot() +
+      geom_col(aes(x = Combined_Key, y = New_Cases), fill = staturdays_colors("orange")) +
+      labs(title = "Counties with Most\nNew Cases Today",
+           subtitle = paste0("Data as of ", format.Date(max(covid_data$date), "%B %d, %Y")),
+           x = "County",
+           y = "Number of Cases",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = comma) +
+      theme(axis.text.x = element_text(angle = 90)) +
+      scale_x_discrete(labels = function(x) str_remove(x, ", US"))
+    }
+  )
+  
   output$cases <- renderPlot(
     {
     covid_data %>%
@@ -406,6 +435,27 @@ server <- function(input, output) {
 
 # State Cases Output ------------------------------------------------------
 
+  output$top10_states <- renderPlot(
+    {
+      covid_data_state %>% 
+        ungroup() %>% 
+        filter(date == max(date)) %>% 
+        slice_max(n = 10, order_by = New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Province_State, y = New_Cases), fill = staturdays_colors("orange")) +
+        labs(title = "States with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")),
+             x = "State",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90))
+      }
+  )
+  
   output$cases_state <- renderPlot(
     {
       covid_data_state %>%
@@ -467,7 +517,7 @@ server <- function(input, output) {
              color = "Severity Level",
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = comma) +
@@ -487,7 +537,7 @@ server <- function(input, output) {
                      color = "Test Outcome",
                      caption = "@kylebeni012 | @staturdays") +
                 staturdays_theme +
-                theme(legend.position = "bottom") +
+                theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
                 guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
                 expand_limits(y = 0) +
                 scale_y_continuous(labels = comma) +
@@ -505,7 +555,7 @@ server <- function(input, output) {
              color = "Test Outcome",
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = comma) +
@@ -530,7 +580,7 @@ server <- function(input, output) {
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = percent) +
         scale_color_viridis_d()
@@ -540,7 +590,7 @@ server <- function(input, output) {
   output$total_testing_dt_state <- renderDataTable(
     {
       datatable(covid_state_daily_rank, colnames = c("State", "Percent of Tests Positive", "Percent of Population Tested", "Percent of Population Positive", "Positive Results", "Negative Results", "Total Tests", "Ranking - Percent of Tests Positive", "Ranking - Total Positives", "Ranking - Total Tests"), 
-                caption = paste0("Data as of ", format.Date(max(covid_state_daily_pop$date), "%B %d, %Y"))) %>% 
+                caption = paste0("Data as of ", format.Date(max(covid_state_daily_pop$date), "%B %d, %Y")), options = list(scrollX = TRUE)) %>% 
         formatPercentage(2:4, digits = 2) %>% 
         DT::formatRound(5:7, digits = 0)
     }
