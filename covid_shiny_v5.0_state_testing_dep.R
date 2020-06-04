@@ -228,7 +228,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 3, placeholder = "Select up to 3 counties")
                                 ),
                                 tags$h6("Optionally, you can type the state name to filter the list down to just the counties in that state.", style = "margin-bottom:30px; color:#545454"),
-                                dateRangeInput(inputId = "daterange", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15")
+                                dateRangeInput(inputId = "daterange", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15"),
+                                plotOutput(outputId = "top10_counties")
                               ),
                               mainPanel(
                                 plotOutput(outputId = "cases"),
@@ -364,6 +365,27 @@ server <- function(input, output) {
 
 # County Output -----------------------------------------------------------
 
+  output$top10_counties <- renderPlot(
+    {
+    covid_data %>% 
+      filter(date == max(covid_data$date)) %>% 
+      top_n(10, New_Cases) %>%
+      ggplot() +
+      geom_col(aes(x = Combined_Key, y = New_Cases), fill = staturdays_colors("orange")) +
+      labs(title = "Counties with Most\nNew Cases Today",
+           subtitle = paste0("Data as of ", format.Date(max(covid_data$date), "%B %d, %Y")),
+           x = "County",
+           y = "Number of Cases",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = comma) +
+      theme(axis.text.x = element_text(angle = 90)) +
+      scale_x_discrete(labels = function(x) str_remove(x, ", US"))
+    }
+  )
+  
   output$cases <- renderPlot(
     {
     covid_data %>%
