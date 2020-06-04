@@ -256,7 +256,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                multiple = TRUE,
                                                options = list(maxItems = 3, placeholder = "Select up to 3 states")
                                 ),
-                                dateRangeInput(inputId = "daterange_state", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15")
+                                dateRangeInput(inputId = "daterange_state", label = "Select Date Range", start = today()-60, end = max(covid_data$date), min = "2020-01-15"),
+                                plotOutput(outputId = "top10_states")
                               ),
                               mainPanel(
                                 plotOutput(outputId = "cases_state"),
@@ -434,6 +435,27 @@ server <- function(input, output) {
 
 # State Cases Output ------------------------------------------------------
 
+  output$top10_states <- renderPlot(
+    {
+      covid_data_state %>% 
+        ungroup() %>% 
+        filter(date == max(date)) %>% 
+        slice_max(n = 10, order_by = New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Province_State, y = New_Cases), fill = staturdays_colors("orange")) +
+        labs(title = "States with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")),
+             x = "State",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90))
+      }
+  )
+  
   output$cases_state <- renderPlot(
     {
       covid_data_state %>%
