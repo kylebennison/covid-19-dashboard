@@ -3,7 +3,7 @@ This is a dashboard built in R with Shiny used to track COVID-19 new and total c
 
 In addition, this I have pulled in testing and hospitalization data which is currently available at the state-level.  
 
-## preject goal
+## project goal
 The goal of this project is to better-inform average citizens, as well as decision-makers, about the true reality and spread of COVID-19 in their area. This model could be applied to other localized outbreaks in the future.  
 
 ## data sources
