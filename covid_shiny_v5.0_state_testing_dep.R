@@ -298,7 +298,7 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                        tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$hr(),
                                 tags$h2("Detailed Testing Data by State"),
-                                dataTableOutput(outputId = "total_testing_dt_state"),
+                                dataTableOutput(outputId = "total_testing_dt_state", width = "100%"),
                                 tags$p("Data - ", 
                                        tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$p("A shiny app by ", 
@@ -517,7 +517,7 @@ server <- function(input, output) {
              color = "Severity Level",
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = comma) +
@@ -537,7 +537,7 @@ server <- function(input, output) {
                      color = "Test Outcome",
                      caption = "@kylebeni012 | @staturdays") +
                 staturdays_theme +
-                theme(legend.position = "bottom") +
+                theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
                 guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
                 expand_limits(y = 0) +
                 scale_y_continuous(labels = comma) +
@@ -555,7 +555,7 @@ server <- function(input, output) {
              color = "Test Outcome",
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = comma) +
@@ -580,7 +580,7 @@ server <- function(input, output) {
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
         guides(color = guide_legend(nrow = 3, byrow = TRUE)) +
-        theme(legend.position = "bottom") +
+        theme(legend.position = "bottom", plot.title = element_text(size = 20)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = percent) +
         scale_color_viridis_d()
@@ -590,7 +590,7 @@ server <- function(input, output) {
   output$total_testing_dt_state <- renderDataTable(
     {
       datatable(covid_state_daily_rank, colnames = c("State", "Percent of Tests Positive", "Percent of Population Tested", "Percent of Population Positive", "Positive Results", "Negative Results", "Total Tests", "Ranking - Percent of Tests Positive", "Ranking - Total Positives", "Ranking - Total Tests"), 
-                caption = paste0("Data as of ", format.Date(max(covid_state_daily_pop$date), "%B %d, %Y"))) %>% 
+                caption = paste0("Data as of ", format.Date(max(covid_state_daily_pop$date), "%B %d, %Y")), options = list(scrollX = TRUE)) %>% 
         formatPercentage(2:4, digits = 2) %>% 
         DT::formatRound(5:7, digits = 0)
     }
