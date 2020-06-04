@@ -280,7 +280,11 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 1, placeholder = "Select a state")
                                 ),
                                 plotOutput(outputId = "hospitalizations_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 plotOutput(outputId = "testing_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 selectizeInput(inputId = "pos_test_input_state", label = "Select a state", 
                                                choices = unique(covid_state_daily$state.name), 
                                                selected = NULL,
@@ -288,15 +292,17 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 3, placeholder = "Select up to 3 states")
                                 ),
                                 plotOutput(outputId = "pos_tests_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$hr(),
                                 tags$h2("Detailed Testing Data by State"),
                                 dataTableOutput(outputId = "total_testing_dt_state"),
+                                tags$p("Data - ", 
+                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$p("A shiny app by ", 
                                        tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                        " - ", 
-                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank")),
-                                tags$p("Data - ", 
-                                       tags$a("Johns Hopkins CSSE" , href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series", target="_blank"))
+                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank"))
                               )
                             )
                  ),
