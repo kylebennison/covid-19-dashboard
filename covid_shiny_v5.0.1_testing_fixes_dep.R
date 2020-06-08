@@ -73,16 +73,29 @@ covid_data_deaths <- covid_data_deaths %>% rename(Cumulative_Deaths = value)
 
 covid_data <- left_join(covid_data_cases, covid_data_deaths, by = c("Province_State", "Combined_Key", "date"))
 
+covid_data <- covid_data %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
 
 # State and US Summaries --------------------------------------------------
 
 covid_data_state <- covid_data %>% 
   group_by(Province_State, date) %>% 
-  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population))
+  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population)) %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
 
 covid_data_us <- covid_data_state %>% 
   group_by(date) %>% 
-  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population))
+  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population)) %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
 
 
 # Global Data -------------------------------------------------------------
