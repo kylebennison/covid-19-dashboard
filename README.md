@@ -3,6 +3,8 @@ This is a dashboard built in R with Shiny used to track COVID-19 new and total c
 
 In addition, this I have pulled in testing and hospitalization data which is currently available at the state-level.  
 
+The current version of the project output can be found at any time at <a href="https://kylebennison.shinyapps.io/covid-19_county_case_tracker_shiny_app/">https://kylebennison.shinyapps.io/covid-19_county_case_tracker_shiny_app/</a>
+
 ## project goal
 The goal of this project is to better-inform average citizens, as well as decision-makers, about the true reality and spread of COVID-19 in their area. This model could be applied to other localized outbreaks in the future.  
 
