@@ -76,8 +76,8 @@ covid_data <- left_join(covid_data_cases, covid_data_deaths, by = c("Province_St
 covid_data <- covid_data %>% 
   mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
          Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
-         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
-         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
+         New_Deaths_Per_Cap = (New_Deaths / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Deaths / Population) * 100000)
 
 # State and US Summaries --------------------------------------------------
 
@@ -229,6 +229,27 @@ covid_state_daily_rank <- temp_rank %>% mutate(percent_tests_pos_rank = row_numb
 # UI ----------------------------------------------------------------------
 
 ui <- navbarPage(title = "COVID-19 Case Tracker",
+                 tabPanel("Summary",
+                          fluidPage(
+                            sidebarLayout(
+                              sidebarPanel(
+                                plotOutput(outputId = "top10_counties"),
+                                plotOutput(outputId = "top10_states")
+                              ),
+                              mainPanel(
+                                tags$h2("States With New Case Peak in the Past Week"),
+                                dataTableOutput(outputId = "recent_peaks_state", width = "100%"),
+                                plotOutput(outputId = "total_tests"),
+                                tags$p("A shiny app by ", 
+                                       tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
+                                       " - ", 
+                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank")),
+                                tags$p("Data - ", 
+                                       tags$a("Johns Hopkins CSSE" , href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series", target="_blank"))
+                              )
+                            )
+                          )
+                 ),
                  tabPanel("County",
                           fluidPage(
                             sidebarLayout(
@@ -377,6 +398,42 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
 
 server <- function(input, output) {
 
+
+# Summary Output ----------------------------------------------------------
+
+output$recent_peaks_state <- renderDataTable(
+  {
+    datatable({covid_data_state %>% 
+        group_by(Province_State) %>% 
+        slice_max(New_Cases) %>% 
+        filter(New_Cases != 0, today()-date <= 7) %>% 
+        select(1:3)}, colnames = c("State", "Date of Peak", "New Cases"), 
+              caption = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")), options = list(scrollX = TRUE, pageLength = 50)) %>% 
+      DT::formatRound(3, digits = 0) %>% 
+      DT::formatDate(2)
+  }
+)
+
+output$total_tests <- renderPlot(
+  {
+    covid_state_daily %>% 
+      filter(date >= today() - 30) %>% 
+      group_by(date) %>% 
+      summarise(total_tests = sum(totalTestResultsIncrease)) %>% 
+      ggplot(aes(x = date, y = total_tests)) +
+      geom_col(fill = staturdays_colors("orange")) +
+      labs(title = "New Tests in US by Day",
+           subtitle = paste0("Data as of ", format.Date(max(covid_state_daily$date), "%B %d, %Y")),
+           x = "Date",
+           y = "Number of Tests",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = comma)
+  }
+)
+  
 # County Output -----------------------------------------------------------
 
   output$top10_counties <- renderPlot(
