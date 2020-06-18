@@ -233,8 +233,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                           fluidPage(
                             sidebarLayout(
                               sidebarPanel(
-                                plotOutput(outputId = "top10_counties"),
-                                plotOutput(outputId = "top10_states")
+                                plotOutput(outputId = "top10_counties_summary"),
+                                plotOutput(outputId = "top10_states_summary")
                               ),
                               mainPanel(
                                 tags$h2("States With New Case Peak in the Past Week"),
@@ -401,7 +401,49 @@ server <- function(input, output) {
 
 # Summary Output ----------------------------------------------------------
 
-output$recent_peaks_state <- renderDataTable(
+  output$top10_counties_summary <- renderPlot(
+    {
+      covid_data %>% 
+        filter(date == max(covid_data$date)) %>% 
+        top_n(10, New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Combined_Key, y = New_Cases), fill = staturdays_colors("lightest_blue")) +
+        labs(title = "Counties with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data$date), "%B %d, %Y")),
+             x = "County",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90)) +
+        scale_x_discrete(labels = function(x) str_remove(x, ", US"))
+    }
+  )
+  
+  output$top10_states_summary <- renderPlot(
+    {
+      covid_data_state %>% 
+        ungroup() %>% 
+        filter(date == max(date)) %>% 
+        slice_max(n = 10, order_by = New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Province_State, y = New_Cases), fill = staturdays_colors("light_blue")) +
+        labs(title = "States with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")),
+             x = "State",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90))
+    }
+  )
+  
+  output$recent_peaks_state <- renderDataTable(
   {
     datatable({covid_data_state %>% 
         group_by(Province_State) %>% 
