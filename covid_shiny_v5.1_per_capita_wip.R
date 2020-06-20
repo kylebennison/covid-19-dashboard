@@ -371,7 +371,7 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                choices = unique(covid_data_global$Country.Region), 
                                                selected = NULL,
                                                multiple = TRUE,
-                                               options = list(maxItems = 3, placeholder = "Select up to 3 countries")
+                                               options = list(maxItems = 1, placeholder = "Select a country")
                                 ),
                                 dateRangeInput(inputId = "daterange_global", label = "Select Date Range", start = today()-60, end = max(covid_data_global$date), min = "2020-01-15")
                               ),
