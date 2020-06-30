@@ -5,6 +5,8 @@ library(lubridate)
 library(scales)
 library(DT)
 library(jsonlite)
+library(plotly)
+library(htmlwidgets)
 ### Load theme ###
 #Staturdays Colors
 staturdays_col_list <- c(
@@ -240,6 +242,7 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                 tags$h2("States With New Case Peak in the Past Week"),
                                 dataTableOutput(outputId = "recent_peaks_state", width = "100%"),
                                 plotOutput(outputId = "total_tests"),
+                                plotOutput(outputId = "summary_pct_pos_tests"),
                                 tags$p("A shiny app by ", 
                                        tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                        " - ", 
@@ -475,6 +478,26 @@ output$total_tests <- renderPlot(
       scale_y_continuous(labels = comma)
   }
 )
+  
+  output$summary_pct_pos_tests <- renderPlot(
+    {
+    covid_state_daily %>% 
+      filter(date >= today() - 60) %>% 
+      group_by(date) %>% 
+      summarise(pct_positive = (sum(positiveIncrease)/sum(totalTestResultsIncrease))) %>% 
+      ggplot(aes(x = date, y = pct_positive)) +
+      geom_line(colour = staturdays_colors("light_blue")) +
+      labs(title = "Positive Test Rate in the US by Day",
+           subtitle = paste0("Data as of ", format.Date(max(covid_state_daily$date), "%B %d, %Y")),
+           x = "Date",
+           y = "Positive Test Percentage",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = percent)
+    }
+  )
   
 # County Output -----------------------------------------------------------
 
