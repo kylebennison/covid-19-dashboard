@@ -7,6 +7,7 @@ library(DT)
 library(jsonlite)
 library(plotly)
 library(htmlwidgets)
+library(gt)
 ### Load theme ###
 #Staturdays Colors
 staturdays_col_list <- c(
@@ -225,6 +226,44 @@ covid_state_daily_rank <- temp_rank %>% mutate(percent_tests_pos_rank = row_numb
                                                total_testing_rank = row_number(desc(total_tests))) %>% 
   arrange(percent_tests_pos_rank)
 
+# WOW and MOM changes in cases, hospitalizations, and deaths
+# Monthly
+covid_state_daily_MOM <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date, label = TRUE, abbr = FALSE)) %>% 
+  group_by(state.name,month) %>% 
+  summarise(monthly_cases = sum(positiveIncrease), monthly_hospitalizations = sum(hospitalizedIncrease), monthly_deaths = sum(deathIncrease)) %>% 
+  arrange(desc(state.name, month)) %>% 
+  summarise(state.name, month, MOM_Cases = case_when(state.name == lag(state.name, 1L) ~ ((monthly_cases - lag(monthly_cases, 1L))/lag(monthly_cases, 1L)),
+                                  TRUE ~ 0
+  ),
+  MOM_Hospitalizations = case_when(state.name == lag(state.name, 1L) ~ ((monthly_hospitalizations - lag(monthly_hospitalizations, 1L))/lag(monthly_hospitalizations, 1L)),
+                        TRUE ~ 0
+  ),
+  MOM_Deaths = case_when(state.name == lag(state.name, 1L) ~ ((monthly_deaths - lag(monthly_deaths, 1L))/lag(monthly_deaths, 1L)),
+                        TRUE ~ 0
+  )) %>% 
+  filter(month == max(month))
+
+# Weekly
+covid_state_daily_WOW <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date)) %>% 
+  group_by(state.name,week) %>% 
+  summarise(weekly_cases = sum(positiveIncrease), weekly_hospitalizations = sum(hospitalizedIncrease), weekly_deaths = sum(deathIncrease)) %>% 
+  arrange(desc(state.name, week)) %>% 
+  summarise(state.name, week, 
+            WOW_Cases = case_when(state.name == lag(state.name, 1L) ~ ((weekly_cases - lag(weekly_cases, 1L))/lag(weekly_cases, 1L)),
+                                                TRUE ~ 0
+  ),
+  WOW_Hospitalizations = case_when(state.name == lag(state.name, 1L) ~ ((weekly_hospitalizations - lag(weekly_hospitalizations, 1L))/lag(weekly_hospitalizations, 1L)),
+                                   TRUE ~ 0
+  ),
+  WOW_Deaths = case_when(state.name == lag(state.name, 1L) ~ ((weekly_deaths - lag(weekly_deaths, 1L))/lag(weekly_deaths, 1L)),
+                         TRUE ~ 0
+  )) %>% 
+  filter(week == max(week) - 1)
+
+# Join tables
+covid_state_daily_WOW_MOM <- covid_state_daily_MOM %>% 
+  left_join(covid_state_daily_WOW, by = "state.name")
+
 # Start Shiny App ---------------------------------------------------------
 
 
@@ -243,6 +282,7 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                 dataTableOutput(outputId = "recent_peaks_state", width = "100%"),
                                 plotOutput(outputId = "total_tests"),
                                 plotOutput(outputId = "summary_pct_pos_tests"),
+                                dataTableOutput(outputId = "WOW_MOM_state", width = "100%"),
                                 tags$p("A shiny app by ", 
                                        tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
                                        " - ", 
@@ -496,6 +536,16 @@ output$total_tests <- renderPlot(
       theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
             plot.subtitle = element_text(size = 10)) +
       scale_y_continuous(labels = percent)
+    }
+  )
+  
+  output$WOW_MOM_state <- renderDataTable(
+    {
+      datatable(
+        covid_state_daily_WOW_MOM,
+                colnames = c("State", "Month", "Monthly Cases", "Monthly Hospitalizations", "Monthly Deaths", "Week of Year", "Weekly Cases", "Weekly Hospitalizations", "Weekly Deaths"),
+                caption = paste0("Data as of ", format.Date(today() - 1, "%B %d, %Y")), options = list(pageLength = 60, scrollX = TRUE, columnDefs = list(list(className = 'dt-left', targets = 0:8)))) %>% 
+        DT::formatPercentage(c(3:5, 7:9))
     }
   )
   
