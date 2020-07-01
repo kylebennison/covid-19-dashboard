@@ -5,6 +5,9 @@ library(lubridate)
 library(scales)
 library(DT)
 library(jsonlite)
+library(plotly)
+library(htmlwidgets)
+library(gt)
 ### Load theme ###
 #Staturdays Colors
 staturdays_col_list <- c(
@@ -73,16 +76,29 @@ covid_data_deaths <- covid_data_deaths %>% rename(Cumulative_Deaths = value)
 
 covid_data <- left_join(covid_data_cases, covid_data_deaths, by = c("Province_State", "Combined_Key", "date"))
 
+covid_data <- covid_data %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (New_Deaths / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Deaths / Population) * 100000)
 
 # State and US Summaries --------------------------------------------------
 
 covid_data_state <- covid_data %>% 
   group_by(Province_State, date) %>% 
-  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population))
+  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population)) %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
 
 covid_data_us <- covid_data_state %>% 
   group_by(date) %>% 
-  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population))
+  summarise(New_Cases = sum(New_Cases), New_Deaths = sum(New_Deaths), Cumulative_Cases = sum(Cumulative_Cases), Cumulative_Deaths = sum(Cumulative_Deaths), Population = sum(Population)) %>% 
+  mutate(New_Cases_Per_Cap = (New_Cases / Population) * 100000, 
+         Cum_Cases_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         New_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000,
+         Cum_Deaths_Per_Cap = (Cumulative_Cases / Population) * 100000)
 
 
 # Global Data -------------------------------------------------------------
@@ -210,12 +226,79 @@ covid_state_daily_rank <- temp_rank %>% mutate(percent_tests_pos_rank = row_numb
                                                total_testing_rank = row_number(desc(total_tests))) %>% 
   arrange(percent_tests_pos_rank)
 
+# WOW and MOM changes in cases, hospitalizations, and deaths
+# Monthly
+covid_state_daily_MOM <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date, label = TRUE, abbr = FALSE), day = mday(date))
+datemax <- max(covid_state_daily_MOM$date) # need to get current max date then filter previous months to do MTD calculation
+
+covid_state_daily_MOM <- covid_state_daily_MOM %>% 
+  filter(day <= day(datemax)) %>% # Make data MTD for each month
+  group_by(state.name,month) %>% 
+  summarise(monthly_cases = sum(positiveIncrease), monthly_hospitalizations = sum(hospitalizedIncrease), monthly_deaths = sum(deathIncrease)) %>% 
+  arrange(desc(state.name, month)) %>% 
+  summarise(state.name, month, MOM_Cases = case_when(state.name == lag(state.name, 1L) ~ ((monthly_cases - lag(monthly_cases, 1L))/lag(monthly_cases, 1L)),
+                                  TRUE ~ 0
+  ),
+  MOM_Hospitalizations = case_when(state.name == lag(state.name, 1L) ~ ((monthly_hospitalizations - lag(monthly_hospitalizations, 1L))/lag(monthly_hospitalizations, 1L)),
+                        TRUE ~ 0
+  ),
+  MOM_Deaths = case_when(state.name == lag(state.name, 1L) ~ ((monthly_deaths - lag(monthly_deaths, 1L))/lag(monthly_deaths, 1L)),
+                        TRUE ~ 0
+  )) %>% 
+  filter(month == max(month))
+
+# Weekly
+covid_state_daily_WOW <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date)) %>% 
+  group_by(state.name,week) %>% 
+  summarise(weekly_cases = sum(positiveIncrease), weekly_hospitalizations = sum(hospitalizedIncrease), weekly_deaths = sum(deathIncrease)) %>% 
+  arrange(desc(state.name, week)) %>% 
+  summarise(state.name, week, 
+            WOW_Cases = case_when(state.name == lag(state.name, 1L) ~ ((weekly_cases - lag(weekly_cases, 1L))/lag(weekly_cases, 1L)),
+                                                TRUE ~ 0
+  ),
+  WOW_Hospitalizations = case_when(state.name == lag(state.name, 1L) ~ ((weekly_hospitalizations - lag(weekly_hospitalizations, 1L))/lag(weekly_hospitalizations, 1L)),
+                                   TRUE ~ 0
+  ),
+  WOW_Deaths = case_when(state.name == lag(state.name, 1L) ~ ((weekly_deaths - lag(weekly_deaths, 1L))/lag(weekly_deaths, 1L)),
+                         TRUE ~ 0
+  )) %>% 
+  filter(week == max(week) - 1)
+
+# Join tables
+covid_state_daily_WOW_MOM <- covid_state_daily_MOM %>% 
+  left_join(covid_state_daily_WOW, by = "state.name")
+
 # Start Shiny App ---------------------------------------------------------
 
 
 # UI ----------------------------------------------------------------------
 
 ui <- navbarPage(title = "COVID-19 Case Tracker",
+                 tabPanel("Summary",
+                          fluidPage(
+                            sidebarLayout(
+                              sidebarPanel(
+                                plotOutput(outputId = "top10_counties_summary"),
+                                plotOutput(outputId = "top10_states_summary")
+                              ),
+                              mainPanel(
+                                tags$h2("States With New Case Peak in the Past Week"),
+                                dataTableOutput(outputId = "recent_peaks_state", width = "100%"),
+                                plotOutput(outputId = "total_tests"),
+                                plotOutput(outputId = "summary_pct_pos_tests"),
+                                tags$h2("% Increase in Cases, Hospitalizations, and Deaths by State"),
+                                tags$h3("Current Month-to-Date and Most Recent Week"),
+                                dataTableOutput(outputId = "WOW_MOM_state", width = "100%"),
+                                tags$p("A shiny app by ", 
+                                       tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
+                                       " - ", 
+                                       tags$a("@kylebeni012", href="https://www.twitter.com/kylebeni012", target="_blank")),
+                                tags$p("Data - ", 
+                                       tags$a("Johns Hopkins CSSE" , href="https://github.com/CSSEGISandData/COVID-19/tree/master/csse_covid_19_data/csse_covid_19_time_series", target="_blank"))
+                              )
+                            )
+                          )
+                 ),
                  tabPanel("County",
                           fluidPage(
                             sidebarLayout(
@@ -274,6 +357,11 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                  ),
                  tabPanel("Testing and Hospitalizations",
                           fluidPage(
+                                tags$h2("Detailed Testing Data by State"),
+                                dataTableOutput(outputId = "total_testing_dt_state", width = "100%"),
+                                tags$p("Data - ", 
+                                   tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
+                                tags$hr(),
                                 dateRangeInput(inputId = "daterange_testing", label = "Select Date Range", start = today()-60, end = max(covid_state_daily$date), min = "2020-01-15"),
                                 selectizeInput(inputId = "testing_state", label = "Select a state", 
                                                choices = unique(covid_state_daily$state.name), 
@@ -294,11 +382,6 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                options = list(maxItems = 3, placeholder = "Select up to 3 states")
                                 ),
                                 plotOutput(outputId = "pos_tests_state"),
-                                tags$p("Data - ", 
-                                       tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
-                                tags$hr(),
-                                tags$h2("Detailed Testing Data by State"),
-                                dataTableOutput(outputId = "total_testing_dt_state", width = "100%"),
                                 tags$p("Data - ", 
                                        tags$a("COVID Tracking Project" , href="https://covidtracking.com/api", target="_blank")),
                                 tags$p("A shiny app by ", 
@@ -337,7 +420,7 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                                choices = unique(covid_data_global$Country.Region), 
                                                selected = NULL,
                                                multiple = TRUE,
-                                               options = list(maxItems = 3, placeholder = "Select up to 3 countries")
+                                               options = list(maxItems = 1, placeholder = "Select a country")
                                 ),
                                 dateRangeInput(inputId = "daterange_global", label = "Select Date Range", start = today()-60, end = max(covid_data_global$date), min = "2020-01-15")
                               ),
@@ -364,6 +447,114 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
 
 server <- function(input, output) {
 
+
+# Summary Output ----------------------------------------------------------
+
+  output$top10_counties_summary <- renderPlot(
+    {
+      covid_data %>% 
+        filter(date == max(covid_data$date)) %>% 
+        top_n(10, New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Combined_Key, y = New_Cases), fill = staturdays_colors("lightest_blue")) +
+        labs(title = "Counties with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data$date), "%B %d, %Y")),
+             x = "County",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90)) +
+        scale_x_discrete(labels = function(x) str_remove(x, ", US"))
+    }
+  )
+  
+  output$top10_states_summary <- renderPlot(
+    {
+      covid_data_state %>% 
+        ungroup() %>% 
+        filter(date == max(date)) %>% 
+        slice_max(n = 10, order_by = New_Cases) %>%
+        ggplot() +
+        geom_col(aes(x = Province_State, y = New_Cases), fill = staturdays_colors("light_blue")) +
+        labs(title = "States with Most\nNew Cases Today",
+             subtitle = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")),
+             x = "State",
+             y = "Number of Cases",
+             caption = "@kylebeni012 | @staturdays") +
+        staturdays_theme +
+        theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+              plot.subtitle = element_text(size = 10)) +
+        scale_y_continuous(labels = comma) +
+        theme(axis.text.x = element_text(angle = 90))
+    }
+  )
+  
+  output$recent_peaks_state <- renderDataTable(
+  {
+    datatable({covid_data_state %>% 
+        group_by(Province_State) %>% 
+        slice_max(New_Cases) %>% 
+        filter(New_Cases != 0, today()-date <= 7) %>% 
+        select(1:3)}, colnames = c("State", "Date of Peak", "New Cases"), 
+              caption = paste0("Data as of ", format.Date(max(covid_data_state$date), "%B %d, %Y")), options = list(scrollX = TRUE, pageLength = 50)) %>% 
+      DT::formatRound(3, digits = 0) %>% 
+      DT::formatDate(2)
+  }
+)
+
+output$total_tests <- renderPlot(
+  {
+    covid_state_daily %>% 
+      filter(date >= today() - 30) %>% 
+      group_by(date) %>% 
+      summarise(total_tests = sum(totalTestResultsIncrease)) %>% 
+      ggplot(aes(x = date, y = total_tests)) +
+      geom_col(fill = staturdays_colors("orange")) +
+      labs(title = "New Tests in US by Day",
+           subtitle = paste0("Data as of ", format.Date(max(covid_state_daily$date), "%B %d, %Y")),
+           x = "Date",
+           y = "Number of Tests",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = comma)
+  }
+)
+  
+  output$summary_pct_pos_tests <- renderPlot(
+    {
+    covid_state_daily %>% 
+      filter(date >= today() - 60) %>% 
+      group_by(date) %>% 
+      summarise(pct_positive = (sum(positiveIncrease)/sum(totalTestResultsIncrease))) %>% 
+      ggplot(aes(x = date, y = pct_positive)) +
+      geom_line(colour = staturdays_colors("light_blue")) +
+      labs(title = "Positive Test Rate in the US by Day",
+           subtitle = paste0("Data as of ", format.Date(max(covid_state_daily$date), "%B %d, %Y")),
+           x = "Date",
+           y = "Positive Test Percentage",
+           caption = "@kylebeni012 | @staturdays") +
+      staturdays_theme +
+      theme(plot.title = element_text(color = staturdays_colors("dark_blue"), size = 15, face = "bold"),
+            plot.subtitle = element_text(size = 10)) +
+      scale_y_continuous(labels = percent)
+    }
+  )
+  
+  output$WOW_MOM_state <- renderDataTable(
+    {
+      datatable(
+        covid_state_daily_WOW_MOM,
+                colnames = c("State", "Month", "Monthly Cases", "Monthly Hospitalizations", "Monthly Deaths", "Week of Year", "Weekly Cases", "Weekly Hospitalizations", "Weekly Deaths"),
+                caption = paste0("Data as of ", format.Date(today() - 1, "%B %d, %Y")), options = list(pageLength = 60, scrollX = TRUE, columnDefs = list(list(className = 'dt-left', targets = 0:8)))) %>% 
+        DT::formatPercentage(c(3:5, 7:9))
+    }
+  )
+  
 # County Output -----------------------------------------------------------
 
   output$top10_counties <- renderPlot(
