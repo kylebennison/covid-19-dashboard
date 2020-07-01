@@ -228,7 +228,11 @@ covid_state_daily_rank <- temp_rank %>% mutate(percent_tests_pos_rank = row_numb
 
 # WOW and MOM changes in cases, hospitalizations, and deaths
 # Monthly
-covid_state_daily_MOM <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date, label = TRUE, abbr = FALSE)) %>% 
+covid_state_daily_MOM <- covid_state_daily %>% mutate(week = epiweek(date), month = month(date, label = TRUE, abbr = FALSE), day = mday(date))
+datemax <- max(covid_state_daily_MOM$date) # need to get current max date then filter previous months to do MTD calculation
+
+covid_state_daily_MOM <- covid_state_daily_MOM %>% 
+  filter(day <= day(datemax)) %>% # Make data MTD for each month
   group_by(state.name,month) %>% 
   summarise(monthly_cases = sum(positiveIncrease), monthly_hospitalizations = sum(hospitalizedIncrease), monthly_deaths = sum(deathIncrease)) %>% 
   arrange(desc(state.name, month)) %>% 
@@ -282,6 +286,8 @@ ui <- navbarPage(title = "COVID-19 Case Tracker",
                                 dataTableOutput(outputId = "recent_peaks_state", width = "100%"),
                                 plotOutput(outputId = "total_tests"),
                                 plotOutput(outputId = "summary_pct_pos_tests"),
+                                tags$h2("% Increase in Cases, Hospitalizations, and Deaths by State"),
+                                tags$h3("Current Month-to-Date and Most Recent Week"),
                                 dataTableOutput(outputId = "WOW_MOM_state", width = "100%"),
                                 tags$p("A shiny app by ", 
                                        tags$a("Kyle Bennison", href="https://www.linkedin.com/in/kylebennison", target="_blank"), 
