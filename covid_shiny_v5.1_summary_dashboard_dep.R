@@ -550,7 +550,8 @@ output$total_tests <- renderPlot(
       datatable(
         covid_state_daily_WOW_MOM,
                 colnames = c("State", "Month", "Monthly Cases", "Monthly Hospitalizations", "Monthly Deaths", "Week of Year", "Weekly Cases", "Weekly Hospitalizations", "Weekly Deaths"),
-                caption = paste0("Data as of ", format.Date(today() - 1, "%B %d, %Y")), options = list(pageLength = 60, scrollX = TRUE, columnDefs = list(list(className = 'dt-left', targets = 0:8)))) %>% 
+                caption = paste0("Data as of ", format.Date(today() - 1, "%B %d, %Y")), options = list(pageLength = 60, scrollX = TRUE, columnDefs = list(list(className = 'dt-left', targets = 0:8))),
+        rownames = FALSE) %>% 
         DT::formatPercentage(c(3:5, 7:9))
     }
   )
@@ -882,8 +883,8 @@ output$total_tests <- renderPlot(
              linetype = "Case Outcome",
              caption = "@kylebeni012 | @staturdays") +
         staturdays_theme +
-        theme(legend.position = "bottom") +
-        guides(color = guide_legend(nrow = 3, byrow = TRUE), linetype = guide_legend(nrow = 2, byrow = TRUE)) +
+        theme(legend.position = c(0.75, 0.75), legend.spacing = unit(0, units = "points")) +
+        guides(color = guide_legend(nrow = 1, byrow = TRUE), linetype = guide_legend(nrow = 2, byrow = TRUE)) +
         expand_limits(y = 0) +
         scale_y_continuous(labels = comma) +
         {
